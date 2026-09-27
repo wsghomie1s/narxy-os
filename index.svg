@@ -3,7 +3,7 @@
     <iframe xmlns="http://www.w3.org/1999/xhtml"
       src="https://cdn.jsdelivr.net/gh/wsghomie1s/narxy-os@main/index1.html"
       style="width:100%; height:100%; border:none;"
-      allowfullscreen
+      allowfullscreen="true"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-presentation">
     </iframe>
   </foreignObject>
