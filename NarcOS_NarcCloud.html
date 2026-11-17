@@ -1,0 +1,1174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NarcOS</title>
+<meta name="description" content="NarcOS with NarcCloud: Narcflix, Narcify, Narctube, Xbox-style library, per-app volume mixer and console shell.">
+<style>
+:root{
+  --bg:#06070a; --ink:#f4f1ea; --mute:#8b8f9c; --line:rgba(255,255,255,.09);
+  --amber:#ffb347; --amber2:#e27d2a; --cyan:#5ec8ff; --green:#7bf0a5;
+  --accent:var(--amber); --accent2:var(--amber2);
+  --glass:rgba(18,19,24,.72);
+  --tw:210px; --tg:26px;
+  --nflix:#e50914; --nify:#1db954; --ntube:#ff0000;
+}
+@media (max-width:720px){ :root{ --tw:160px; --tg:16px; } }
+[data-skin=green]{ --accent:#3fae2a; --accent2:#107c10; --green:#7bf0a5; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#06070a;color:var(--ink);
+  font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+button:disabled{cursor:default;opacity:.4}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+input{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;padding:11px 14px;min-width:200px;outline:none}
+input:focus{border-color:var(--accent)}
+input[type=range]{padding:0;min-width:0;accent-color:var(--accent);background:none;border:0}
+
+/* backgrounds */
+#bg{position:fixed;inset:0;background:radial-gradient(120% 90% at 70% 20%,#14161d 0%,#07080b 55%,#030304 100%)}
+[data-skin=green] #bg{background:radial-gradient(120% 90% at 85% 0%,#1b2a17 0%,#0b0f09 50%,#050605 100%)}
+#ribbon{position:absolute;inset:0;width:100%;height:100%;display:block}
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 40% 30%,transparent 40%,rgba(0,0,0,.65) 100%);pointer-events:none}
+
+/* top bar */
+#top{position:fixed;left:0;right:0;top:0;height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 28px;z-index:5}
+.wm{font-weight:800;letter-spacing:.42em;color:var(--accent);font-size:15px;text-transform:uppercase;background:none;border:0;padding:0;cursor:pointer}
+#crumb{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);flex:1;text-align:center}
+#tr{display:flex;align-items:center;gap:14px}
+#clock{font-variant-numeric:tabular-nums;font-size:14px}
+#back{font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);color:var(--ink)}
+#back[hidden]{display:none}
+
+/* screen */
+#screen{position:fixed;left:0;right:0;top:64px;bottom:0;z-index:2;overflow:hidden}
+
+/* dock */
+#dock{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:10px;padding:10px 14px;
+  border-radius:18px;background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--line);z-index:5}
+[data-skin=green] #dock{border-radius:999px}
+.dk{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.04)}
+.dk:hover,.dk:focus-visible{background:rgba(255,255,255,.14)}
+.dk.act{background:var(--accent);color:#06070a}
+.dk svg,.ico{width:22px;height:22px}
+.ico{width:100%;height:100%}
+.ico-l{width:48px;height:48px;color:#fff}
+
+/* home: narcos (amber) */
+.home-n{position:absolute;inset:0}
+.focus{position:absolute;left:0;right:0;top:7vh;text-align:center;pointer-events:none}
+.focus h1{margin:0;font-size:clamp(28px,4vw,50px);font-weight:300;letter-spacing:.06em}
+.focus p{margin:8px 0 0;color:var(--mute);font-size:15px}
+.strip-wrap{position:absolute;left:0;right:0;top:38%;height:300px}
+.strip{position:absolute;left:0;top:0;height:100%;display:flex;gap:var(--tg);transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+.tile{width:var(--tw);height:100%;border-radius:18px;position:relative;overflow:hidden;text-align:left;
+  background:linear-gradient(160deg,var(--c1) 0%,var(--c2) 85%);border:1px solid rgba(255,255,255,.1);
+  display:flex;flex-direction:column;justify-content:flex-end;padding:18px;opacity:.55;
+  transition:transform .35s,opacity .35s,box-shadow .35s}
+.tile:focus{outline:none;opacity:1;transform:scale(1.04);box-shadow:0 20px 60px -10px rgba(0,0,0,.8),0 0 0 2px var(--accent)}
+.tile .tic{position:absolute;top:22px;left:22px;width:48px;height:48px;color:#fff}
+.tile .tn{font-size:18px;font-weight:600}
+.tile .ts{font-size:12px;color:rgba(255,255,255,.72);margin-top:4px}
+
+/* home: green (Xbox-style) */
+.home-x{position:absolute;inset:0;overflow:auto;padding:0 28px 110px}
+.hero{position:relative;height:min(44vh,380px);border-radius:14px;overflow:hidden;margin-top:6px;background:#111}
+.hero-art{position:absolute;inset:0;background:linear-gradient(100deg,rgba(0,0,0,.85),rgba(0,0,0,.05) 65%),var(--hc,linear-gradient(120deg,#132015,#0b0f09));transition:background .6s}
+.hero-txt{position:absolute;left:34px;bottom:30px;max-width:54%}
+.hero-txt h1{font-size:clamp(26px,3.6vw,44px);font-weight:600;margin:6px 0 8px}
+.hero-txt p{color:var(--mute);margin:0 0 16px;max-width:520px}
+.kicker{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent)}
+.rowlabel{margin:26px 2px 12px;font-size:15px;font-weight:600}
+.shelf{display:flex;gap:16px;overflow-x:auto;padding:4px 4px 12px}
+.sc{flex:0 0 auto;width:200px;height:112px;border-radius:12px;position:relative;overflow:hidden;text-align:left;
+  background:linear-gradient(150deg,var(--c1),var(--c2));border:1px solid rgba(255,255,255,.08)}
+.sc:focus-visible,.sc:hover{outline:2px solid var(--accent)}
+.sct{position:absolute;left:12px;bottom:10px;font-weight:600;font-size:14px}
+
+/* pill buttons */
+.pill{padding:11px 22px;border-radius:999px;background:var(--accent);color:#06070a;font-weight:700;font-size:14px;display:inline-block;margin:0 8px 8px 0}
+.pill.alt{background:rgba(255,255,255,.12);color:var(--ink)}
+.pill.ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:var(--ink)}
+.pill.danger{background:#b3261e;color:#fff}
+.pill.nflix{background:var(--nflix);color:#fff}
+.pill.nify{background:var(--nify);color:#000}
+.pill.ntube{background:var(--ntube);color:#fff}
+
+/* pages */
+.page{position:absolute;inset:0;overflow:auto;padding:12px 28px 120px}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.ph h1{font-size:30px;font-weight:300;margin:0}
+.note{color:var(--mute);font-size:14px;line-height:1.5;max-width:620px}
+.list{display:flex;flex-direction:column;gap:10px}
+.row-i{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);text-align:left}
+.row-i .sw{width:48px;height:48px;border-radius:10px;background:linear-gradient(145deg,var(--c1),var(--c2));flex-shrink:0}
+.row-i .grow{flex:1;min-width:0}
+.row-i b{display:block;font-size:15px}
+.row-i small{color:var(--mute);font-size:12px}
+.cform{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.cform input{flex:1;min-width:160px}
+
+/* volume mixer */
+.mixer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.mcard{padding:18px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.mcard h3{margin:0 0 8px;font-size:15px}
+.mcard .pct{font-size:22px;font-weight:600;color:var(--accent)}
+.mcard input[type=range]{width:100%;margin-top:10px}
+
+/* music lab */
+.seq{display:grid;grid-template-columns:80px repeat(16,1fr);gap:4px;max-width:900px}
+.rl{display:flex;align-items:center;font-size:12px;color:var(--mute)}
+.cell{aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid transparent}
+.cell[aria-pressed=true]{background:var(--accent);border-color:var(--accent)}
+.cell.now{box-shadow:0 0 0 2px #fff}
+.mctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* terminal */
+.term{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.55;
+  background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:320px;white-space:pre-wrap}
+.tinput{display:flex;gap:8px;margin-top:12px}
+.tinput input{flex:1;font-family:inherit}
+
+/* toast */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 20px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(12px);opacity:0;pointer-events:none;transition:.3s;z-index:20;font-size:14px}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* boot */
+#boot{position:fixed;inset:0;z-index:50;background:#030304;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .6s,visibility .6s}
+#boot.ready{opacity:0;visibility:hidden;pointer-events:none}
+.blogo{font-weight:800;letter-spacing:.5em;font-size:22px;color:var(--accent);margin-bottom:28px}
+.blog{font-family:ui-monospace,monospace;font-size:12px;color:var(--mute);max-width:420px;line-height:1.7;text-align:left}
+
+/* ========== NarcCloud hub ========== */
+#narccloud{position:fixed;inset:0;z-index:40;display:none;background:#08090d;color:#f4f5f8;overflow:auto}
+#narccloud.open{display:block;animation:ccIn .22s ease}
+@keyframes ccIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.nc-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:16px clamp(16px,4vw,48px);background:rgba(8,9,13,.88);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nc-brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase}
+.nc-mark{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#fff,#8ca4ff);display:grid;place-items:center;color:#111;font-weight:900;font-size:14px}
+.nc-actions{display:flex;gap:8px}
+.nc-btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;border-radius:11px;padding:10px 14px;font-weight:650;cursor:pointer}
+.nc-btn:hover{border-color:rgba(255,255,255,.45)}
+.nc-wrap{max-width:1400px;margin:auto;padding:24px clamp(16px,4vw,48px) 100px}
+.nc-hero{min-height:260px;border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:clamp(22px,4vw,48px);
+  display:flex;flex-direction:column;justify-content:end;
+  background:linear-gradient(100deg,rgba(7,9,15,.95),rgba(7,9,15,.5)),radial-gradient(circle at 80% 20%,rgba(110,139,255,.4),transparent 42%),linear-gradient(135deg,#1a2034,#101116)}
+.nc-kicker{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#b9c7ff;font-weight:800}
+.nc-hero h1{font-size:clamp(32px,5.5vw,56px);line-height:1.05;letter-spacing:-1.5px;margin:10px 0}
+.nc-hero p{color:#b8bbc6;max-width:560px;line-height:1.55;margin:0 0 18px}
+.nc-nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0}
+.nc-nav button{border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.04);color:#c9cbd4;padding:10px 16px;cursor:pointer}
+.nc-nav button.active{background:#f4f5f8;color:#101116;border-color:#f4f5f8;font-weight:800}
+.nc-search{width:100%;padding:14px 16px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.05);color:#fff;font-size:15px;outline:none;margin-bottom:20px}
+.nc-search:focus{border-color:#a9b8ff;box-shadow:0 0 0 3px rgba(169,184,255,.2)}
+.nc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.nc-card{border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:18px;background:rgba(255,255,255,.03);display:flex;flex-direction:column;gap:10px;text-align:left;cursor:pointer;transition:.2s}
+.nc-card:hover,.nc-card:focus-visible{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.06);outline:none}
+.nc-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nc-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;font-weight:800}
+.nc-tag{font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:#c9cbd4}
+.nc-card strong{font-size:17px}
+.nc-card small{color:#a0a4b0;font-size:13px;line-height:1.4}
+.nc-empty{padding:40px;text-align:center;color:var(--mute)}
+
+/* Narcflix (Netflix themed) */
+.nflix-root{position:absolute;inset:0;overflow:auto;background:#141414;padding:0 0 100px}
+.nflix-top{display:flex;align-items:center;gap:28px;padding:18px 36px;background:linear-gradient(180deg,#141414,#14141400);position:sticky;top:0;z-index:3}
+.nflix-logo{font-weight:900;font-size:28px;color:var(--nflix);letter-spacing:-1px}
+.nflix-nav a{color:#e5e5e5;font-size:14px;margin-right:18px;opacity:.85}
+.nflix-nav a:hover{opacity:1}
+.nflix-hero{height:min(52vh,420px);position:relative;margin:0 0 24px;background:linear-gradient(100deg,#000 20%,transparent 70%),linear-gradient(180deg,transparent 50%,#141414),#1a0505}
+.nflix-hero-inner{position:absolute;left:36px;bottom:40px;max-width:480px}
+.nflix-hero h2{font-size:clamp(28px,4vw,48px);margin:0 0 10px;font-weight:700}
+.nflix-hero p{color:#ccc;margin:0 0 16px;line-height:1.45}
+.nflix-row{margin:0 0 28px;padding:0 36px}
+.nflix-row h3{font-size:18px;margin:0 0 12px;font-weight:600}
+.nflix-shelf{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+.nflix-tile{flex:0 0 180px;height:102px;border-radius:6px;background:linear-gradient(145deg,var(--c1),var(--c2));position:relative;overflow:hidden;border:2px solid transparent;transition:.15s}
+.nflix-tile:hover,.nflix-tile:focus-visible{border-color:#fff;transform:scale(1.06);z-index:2;outline:none}
+.nflix-tile span{position:absolute;left:10px;bottom:8px;font-size:13px;font-weight:600;text-shadow:0 1px 4px #000}
+
+/* Narcify (Spotify themed) */
+.nify-root{position:absolute;inset:0;display:grid;grid-template-columns:240px 1fr;background:#121212;overflow:hidden}
+.nify-side{background:#000;padding:20px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #282828}
+.nify-side .logo{font-weight:800;font-size:22px;color:var(--nify);margin:0 0 18px 8px}
+.nify-side button{text-align:left;padding:10px 14px;border-radius:8px;color:#b3b3b3;font-weight:600;font-size:14px}
+.nify-side button:hover,.nify-side button.active{color:#fff;background:rgba(255,255,255,.08)}
+.nify-main{overflow:auto;padding:24px 28px 120px}
+.nify-main h1{font-size:28px;font-weight:700;margin:0 0 18px}
+.nify-playlists{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+.nify-pl{background:#181818;border-radius:10px;padding:14px;text-align:left;transition:.2s}
+.nify-pl:hover{background:#282828}
+.nify-pl .art{width:100%;aspect-ratio:1;border-radius:6px;background:linear-gradient(145deg,var(--c1),var(--c2));margin-bottom:12px}
+.nify-pl strong{display:block;font-size:14px;margin-bottom:4px}
+.nify-pl small{color:#b3b3b3;font-size:12px}
+.nify-bar{position:absolute;left:0;right:0;bottom:0;height:90px;background:#181818;border-top:1px solid #282828;
+  display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:20px}
+.nify-now{display:flex;align-items:center;gap:14px;min-width:200px}
+.nify-now .art{width:56px;height:56px;border-radius:6px;background:linear-gradient(145deg,#1db954,#0d5c2a)}
+.nify-ctrls{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.nify-ctrls .btns{display:flex;gap:18px;align-items:center}
+.nify-ctrls .btns button{color:#b3b3b3;font-size:18px}
+.nify-ctrls .btns button.play{width:36px;height:36px;border-radius:50%;background:#fff;color:#000;font-size:14px;display:grid;place-items:center}
+.nify-vol{display:flex;align-items:center;gap:10px;min-width:160px}
+.nify-vol input{width:110px}
+
+/* Narctube (YouTube themed) */
+.ntube-root{position:absolute;inset:0;overflow:auto;background:#0f0f0f;padding:0 0 100px}
+.ntube-top{display:flex;align-items:center;gap:20px;padding:12px 24px;background:#0f0f0f;position:sticky;top:0;z-index:3;border-bottom:1px solid #272727}
+.ntube-logo{font-weight:800;font-size:22px;color:#fff;display:flex;align-items:center;gap:6px}
+.ntube-logo span{background:var(--ntube);color:#fff;padding:2px 6px;border-radius:6px;font-size:14px}
+.ntube-search{flex:1;max-width:640px;display:flex}
+.ntube-search input{flex:1;border-radius:40px 0 0 40px;border:1px solid #303030;background:#121212;padding:10px 18px}
+.ntube-search button{border-radius:0 40px 40px 0;background:#222;border:1px solid #303030;border-left:0;padding:0 22px;color:#fff}
+.ntube-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;padding:24px}
+.ntube-vid{text-align:left;cursor:pointer}
+.ntube-thumb{width:100%;aspect-ratio:16/9;border-radius:12px;background:linear-gradient(145deg,var(--c1),var(--c2));margin-bottom:10px;position:relative}
+.ntube-thumb .dur{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.8);padding:2px 6px;border-radius:4px;font-size:12px}
+.ntube-vid strong{display:block;font-size:14px;line-height:1.35;margin-bottom:4px}
+.ntube-vid small{color:#aaa;font-size:12px}
+
+/* volume float (from video) */
+.vol-float{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:30;display:none;
+  background:rgba(20,20,20,.92);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px 12px;backdrop-filter:blur(12px)}
+.vol-float.show{display:flex;flex-direction:column;align-items:center;gap:8px}
+.vol-float .pct{font-size:13px;font-weight:700;color:var(--accent)}
+.vol-float input[type=range]{writing-mode:vertical-lr;direction:rtl;height:120px;width:28px}
+
+/* video player overlay (Invidious / Archive) */
+#player{position:fixed;inset:0;z-index:40;background:#000;display:none;flex-direction:column}
+#player.open{display:flex}
+#player .ptop{display:flex;align-items:center;gap:14px;padding:12px 18px;background:#0a0a0a;border-bottom:1px solid #222}
+#player .ptitle{flex:1;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#player .pclose{background:#222;border:0;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+#player .pclose:hover{background:#333}
+#player .pframe{flex:1;border:0;width:100%;background:#000}
+#player .pnote{padding:8px 18px;font-size:12px;color:#888;background:#0a0a0a}
+
+/* settings / misc */
+.srow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<div id="bg"><canvas id="ribbon"></canvas><div id="vignette"></div></div>
+
+<header id="top">
+  <button class="wm" id="wm" aria-label="NarcOS home">NarcOS</button>
+  <div id="crumb">Home</div>
+  <div id="tr">
+    <span id="clock"></span>
+    <button id="back" hidden>Back</button>
+  </div>
+</header>
+
+<main id="screen" aria-label="NarcOS"></main>
+
+<nav id="dock" aria-label="Dock">
+  <button class="dk" data-go="home" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg></button>
+  <button class="dk" data-go="narccloud" aria-label="NarcCloud" title="NarcCloud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 18h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.6 9.5 3.6 3.6 0 0 0 7 18z"/></svg></button>
+  <button class="dk" data-go="library" aria-label="Library" title="Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="6" height="16" rx="1.5"/><rect x="11" y="4" width="4" height="16" rx="1.5"/><path d="M17 5l3 1-3.4 14.1-3-.8z"/></svg></button>
+  <button class="dk" data-go="mixer" aria-label="Volume mixer" title="Volume mixer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+  <button class="dk" data-go="settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></button>
+</nav>
+
+<div id="toast" role="status"></div>
+<div id="volfloat" class="vol-float" aria-hidden="true">
+  <span class="pct" id="volpct">70%</span>
+  <input type="range" min="0" max="100" value="70" id="volslider" orient="vertical" aria-label="Volume">
+</div>
+
+<div id="player" aria-hidden="true">
+  <div class="ptop">
+    <div class="ptitle" id="ptitle">Playing</div>
+    <button class="pclose" id="pclose" type="button">Close</button>
+  </div>
+  <iframe class="pframe" id="pframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="no-referrer"></iframe>
+  <div class="pnote" id="pnote">Streaming via Invidious / Archive.org</div>
+</div>
+
+<div id="boot" role="dialog" aria-label="NarcOS startup">
+  <div class="blogo">NARCOS</div>
+  <div class="blog" id="blog"></div>
+</div>
+
+<!-- NarcCloud overlay -->
+<div id="narccloud" aria-hidden="true">
+  <div class="nc-top">
+    <div class="nc-brand"><span class="nc-mark">N</span> NarcCloud</div>
+    <div class="nc-actions">
+      <button class="nc-btn" id="nc-home" type="button">Home</button>
+      <button class="nc-btn" id="nc-close" type="button">Close</button>
+    </div>
+  </div>
+  <div class="nc-wrap" id="nc-content"></div>
+</div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+function h(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})){
+    if (v === false || v == null) continue;
+    if (k === "class") e.className = v;
+    else if (k === "style") e.setAttribute("style", v);
+    else if (k === "html") e.innerHTML = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? "" : String(v));
+  }
+  kids.flat(Infinity).forEach(k => {
+    if (k == null || k === false) return;
+    e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  });
+  return e;
+}
+
+/* ---------- storage ---------- */
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem("narcos." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v){ try { localStorage.setItem("narcos." + k, JSON.stringify(v)); } catch (e) {} }
+};
+const S = Object.assign({ skin: "green", sound: true, motion: true, bpm: 118,
+  vol: { music: .8, sys: .7, term: .6, nflix: .75, nify: .85, ntube: .7, game: .9 } }, LS.get("settings", {}));
+let installed = new Set(LS.get("installed", ["cyberpunk","gta5","elden","forza"]));
+let library   = new Set(LS.get("library", ["cyberpunk","gta5","elden","forza"]));
+let cloud     = LS.get("cloud", []);
+let savedNC   = new Set(LS.get("nc_saved", []));
+function saveAll(){
+  LS.set("settings", S); LS.set("installed", [...installed]);
+  LS.set("library", [...library]); LS.set("cloud", cloud); LS.set("nc_saved", [...savedNC]);
+}
+
+/* ---------- catalog (games matching video + originals) ---------- */
+const STORE = [
+  {id:"cyberpunk", t:"Cyberpunk 2077", by:"CD PROJEKT RED", genre:"RPG", size:"70 GB", c:["#3a1a08","#f0a040"], d:"Night City. Open-world RPG. Jump back in."},
+  {id:"gta5",      t:"Grand Theft Auto V", by:"Rockstar", genre:"Action", size:"95 GB", c:["#0b2a1a","#3ecf6e"], d:"Los Santos. The classic open world."},
+  {id:"elden",     t:"Elden Ring", by:"FromSoftware", genre:"Action RPG", size:"60 GB", c:["#2a1a08","#e8c060"], d:"Lands Between. Tarnished, rise."},
+  {id:"forza",     t:"Forza Horizon 5", by:"Playground", genre:"Racing", size:"110 GB", c:["#1a2a08","#a0e040"], d:"Mexico. Festival. Open-world racing."},
+  {id:"backroom-drift", t:"Backroom Drift", by:"Lantern Yard", genre:"Horror", size:"1.2 GB", c:["#3a2608","#f0a040"], d:"Drive a dim, humming maze of rooms that never end."},
+  {id:"neon-frontier", t:"Neon Frontier", by:"Ion Works", genre:"Action", size:"3.4 GB", c:["#0b1c3a","#5ec8ff"], d:"Open-world sprint across a city of holograms."},
+  {id:"shard-tactics", t:"Shard Tactics", by:"Quarry Lane", genre:"Strategy", size:"860 MB", c:["#1d1040","#b58cff"], d:"Turn-based squad battles on floating fragments."},
+  {id:"lumen-sprint", t:"Lumen Sprint", by:"Tiny Foundry", genre:"Platformer", size:"410 MB", c:["#0f2a1c","#7bf0a5"], d:"Light-powered runs through a 2D forest."},
+  {id:"cinder-vault", t:"Cinder Vault", by:"Ashline Studio", genre:"Puzzle", size:"640 MB", c:["#2a0f0a","#ff7a4d"], d:"Heat, pressure and timed seals."},
+  {id:"tower-harbor", t:"Tower Harbor", by:"Bluewake", genre:"Tower defense", size:"220 MB", c:["#082a33","#3fd1e0"], d:"Build and hold the harbor against waves."},
+  {id:"night-circuit", t:"Night Circuit", by:"Overdrive Co.", genre:"Racing", size:"2.1 GB", c:["#1a0a2a","#ff4fa3"], d:"Time trials through rain-soaked tunnels."},
+  {id:"harbor-ledger", t:"Harbor Ledger", by:"Quiet Desk", genre:"Simulation", size:"180 MB", c:["#20231a","#c9d66b"], d:"Run a small port: schedule ships and balance books."}
+];
+const item = id => STORE.find(x => x.id === id);
+const badge = id => installed.has(id) ? "Installed" : library.has(id) ? "In library" : "Free";
+
+/* ---------- apps ---------- */
+const APPS = [
+  {id:"narccloud", n:"NarcCloud", s:"Movies · Music · Video · Cloud", c:"#8ca4ff"},
+  {id:"store",    n:"Store",        s:"Browse and install",    c:"#ffb347"},
+  {id:"library",  n:"Library",      s:"Your games and apps",   c:"#5ec8ff"},
+  {id:"music",    n:"Music Lab",    s:"Step sequencer",        c:"#d78cff"},
+  {id:"mixer",    n:"Volume Mixer", s:"Per-app volume",        c:"#ffd37a"},
+  {id:"term",     n:"Terminal",     s:"NarcOS shell",          c:"#9fe870"},
+  {id:"settings", n:"Settings",     s:"Skin, sound, motion",   c:"#c6c9d4"}
+];
+const NAMES = {home:"Home", store:"Store", detail:"Store", library:"Library", narccloud:"NarcCloud",
+  music:"Music Lab", mixer:"Volume Mixer", term:"Terminal", settings:"Settings",
+  nflix:"Narcflix", nify:"Narcify", ntube:"Narctube"};
+
+/* ---------- sound ---------- */
+let AC = null; const bus = {};
+function ctx(){
+  if (!AC){
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      const master = AC.createGain(); master.connect(AC.destination);
+      for (const k of Object.keys(S.vol)){
+        const g = AC.createGain(); g.gain.value = S.vol[k] ?? .7; g.connect(master); bus[k] = g;
+      }
+    } catch (e) { AC = null; }
+  }
+  if (AC && AC.state === "suspended") AC.resume();
+  return AC;
+}
+function tone(f, dur = .08, type = "sine", vol = .12, ch = "sys", delay = 0){
+  if (!S.sound && ch !== "music") return;
+  const a = ctx(); if (!a || !bus[ch]) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(bus[ch]); o.start(t); o.stop(t + dur + .02);
+}
+const sfx = {
+  move: () => tone(880, .04, "sine", .05),
+  ok:   () => { tone(660, .07, "triangle", .09); tone(990, .09, "triangle", .07, "sys", .06); },
+  back: () => tone(330, .08, "sine", .07),
+  err:  () => tone(160, .14, "square", .05)
+};
+function setVol(k, v){ S.vol[k] = v; if (bus[k]) bus[k].gain.value = v; saveAll(); }
+
+/* ---------- Music Lab ---------- */
+const ROWS = [
+  {n:"Kick",  f:62,   t:"sine",     d:.30, v:.9},
+  {n:"Snare", f:190,  t:"triangle", d:.16, v:.5},
+  {n:"Hat",   f:7200, t:"square",   d:.035, v:.06},
+  {n:"Bass",  f:49,   t:"sawtooth", d:.22, v:.25}
+];
+const M = {
+  g: [
+    [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+    [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],
+    [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+    [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0]
+  ],
+  col: -1, t: null
+};
+function musicTick(){
+  M.col = (M.col + 1) % 16; const c = M.col;
+  ROWS.forEach((r, ri) => { if (M.g[ri][c]) tone(r.f, r.d, r.t, r.v, "music"); });
+  $$(".cell").forEach(e => e.classList.toggle("now", +e.dataset.c === c));
+}
+function musicStart(){
+  if (M.t) return; ctx(); M.col = -1;
+  musicTick(); M.t = setInterval(musicTick, 60000 / S.bpm / 4);
+  const b = $("#mplay"); if (b) b.textContent = "■ Stop";
+}
+function musicStop(){
+  clearInterval(M.t); M.t = null;
+  $$(".cell.now").forEach(e => e.classList.remove("now"));
+  const b = $("#mplay"); if (b) b.textContent = "▶ Play";
+}
+
+/* ---------- ribbon wallpaper ---------- */
+const cv = $("#ribbon"), g2 = cv.getContext("2d");
+let DPR = 1, rafId = 0;
+function fit(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(innerWidth * DPR); cv.height = Math.round(innerHeight * DPR);
+}
+function ribbon(t){
+  const W = cv.width, H = cv.height; g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, W, H);
+  const green = S.skin === "green";
+  const c1 = green ? "126,255,160" : "255,179,71", c2 = green ? "16,124,16" : "226,125,42";
+  const m = S.motion ? 1 : 0, R = Math.min(W, H) * .62;
+  for (let k = 0; k < 5; k++){
+    g2.beginPath();
+    for (let i = 0; i <= 160; i++){
+      const p = i / 160, a = Math.PI * (.12 + .76 * p);
+      const wob = m * Math.sin(t * .6 + p * 4 + k * .7) * R * .03;
+      const x = W * .55 + Math.cos(a) * (R * (.55 + k * .09) + wob);
+      const y = H * .35 + Math.sin(a) * (R * (.55 + k * .09) + wob) * .85;
+      i ? g2.lineTo(x, y) : g2.moveTo(x, y);
+    }
+    g2.strokeStyle = `rgba(${c1},${.08 - k * .012})`;
+    g2.lineWidth = (14 - k * 2) * DPR;
+    g2.stroke();
+  }
+  if (S.motion) rafId = requestAnimationFrame(tt => ribbon(tt / 1000));
+}
+function startRibbon(){ cancelAnimationFrame(rafId); fit(); ribbon(0); }
+
+/* ---------- navigation ---------- */
+let cur = { name: "home", arg: null };
+let lastTile = 0;
+function go(name, arg){
+  if (name === "narccloud"){ openNarcCloud(); return; }
+  cur = { name, arg }; render(); sfx.ok();
+}
+function back(){
+  if (cur.name === "detail") go("store");
+  else if (["nflix","nify","ntube"].includes(cur.name)) { closeNarcCloud(); go("home"); }
+  else go("home");
+  sfx.back();
+}
+function setSkin(s){
+  S.skin = s; document.body.dataset.skin = s; saveAll(); startRibbon(); render();
+}
+
+/* ---------- toast ---------- */
+let toastT = 0;
+function toast(msg){
+  const el = $("#toast"); el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+/* ---------- clock ---------- */
+function tick(){
+  const d = new Date();
+  $("#clock").textContent = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ---------- screens ---------- */
+const SCREENS = {};
+
+SCREENS.home = (root) => {
+  if (S.skin === "green"){
+    const featured = item("elden") || STORE[0];
+    root.append(h("div", {class: "home-x"},
+      h("div", {class: "hero"},
+        h("div", {class: "hero-art", style: `--hc:linear-gradient(120deg,${featured.c[0]},${featured.c[1]})`}),
+        h("div", {class: "hero-txt"},
+          h("div", {class: "kicker"}, "Featured"),
+          h("h1", {}, featured.t),
+          h("p", {}, featured.d),
+          h("button", {class: "pill", onclick: () => go("detail", featured.id)}, "Play"),
+          h("button", {class: "pill alt", onclick: () => go("library")}, "My games & apps"))),
+      h("div", {class: "rowlabel"}, "Jump back in"),
+      h("div", {class: "shelf"},
+        ...["cyberpunk","gta5","elden","forza"].map(id => {
+          const g = item(id); if (!g) return null;
+          return h("button", {class: "sc", style: `--c1:${g.c[0]};--c2:${g.c[1]}`, onclick: () => go("detail", id)},
+            h("span", {class: "sct"}, g.t));
+        })),
+      h("div", {class: "rowlabel"}, "NarcCloud"),
+      h("div", {class: "shelf"},
+        h("button", {class: "sc", style: "--c1:#e50914;--c2:#8b0000", onclick: () => openNarcCloud("nflix")}, h("span", {class: "sct"}, "Narcflix")),
+        h("button", {class: "sc", style: "--c1:#1db954;--c2:#0d5c2a", onclick: () => openNarcCloud("nify")}, h("span", {class: "sct"}, "Narcify")),
+        h("button", {class: "sc", style: "--c1:#ff0000;--c2:#8b0000", onclick: () => openNarcCloud("ntube")}, h("span", {class: "sct"}, "Narctube")),
+        h("button", {class: "sc", style: "--c1:#3fae2a;--c2:#107c10", onclick: () => openNarcCloud()}, h("span", {class: "sct"}, "All services"))),
+      h("div", {class: "rowlabel"}, "Store picks"),
+      h("div", {class: "shelf"},
+        ...STORE.slice(4, 10).map(g =>
+          h("button", {class: "sc", style: `--c1:${g.c[0]};--c2:${g.c[1]}`, onclick: () => go("detail", g.id)},
+            h("span", {class: "sct"}, g.t))))));
+  } else {
+    const tiles = APPS.map((a, i) =>
+      h("button", {class: "tile", style: `--c1:${a.c};--c2:#111`, "data-i": i, onfocus: () => { lastTile = i; setCenter(i, $("#strip")); },
+        onclick: () => go(a.id)},
+        h("span", {class: "tic", html: iconSvg(a.id)}),
+        h("span", {class: "tn"}, a.n),
+        h("span", {class: "ts"}, a.s)));
+    root.append(h("div", {class: "home-n"},
+      h("div", {class: "focus"}, h("h1", {}, "NarcOS"), h("p", {}, "Select an app")),
+      h("div", {class: "strip-wrap"}, h("div", {class: "strip", id: "strip"}, ...tiles))));
+    setTimeout(() => { const s = $("#strip"); if (s) { const t = s.children[lastTile] || s.children[0]; if (t) t.focus(); setCenter(lastTile, s); } }, 30);
+  }
+};
+
+function iconSvg(id){
+  const g = {
+    narccloud:'<path d="M7 18h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.6 9.5 3.6 3.6 0 0 0 7 18z"/>',
+    store:'<path d="M4 9h16l-1.2 10H5.2z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/>',
+    library:'<rect x="4" y="4" width="6" height="16" rx="1.5"/><rect x="11" y="4" width="4" height="16" rx="1.5"/><path d="M17 5l3 1-3.4 14.1-3-.8z"/>',
+    music:'<path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/>',
+    mixer:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    term:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7 9l3 3-3 3M12.5 15H17"/>',
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>'
+  };
+  return `<svg class="ico-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${g[id]||""}</svg>`;
+}
+function setCenter(i, strip){
+  if (!strip) return;
+  const t = strip.children[i]; if (!t) return;
+  const mid = innerWidth / 2, r = t.getBoundingClientRect();
+  const dx = mid - (r.left + r.width / 2);
+  const cur = parseFloat(strip.style.transform.replace(/[^\d.-]/g, "")) || 0;
+  strip.style.transform = `translateX(${cur + dx}px)`;
+}
+
+SCREENS.store = (root) => {
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "Store")),
+    h("div", {class: "list"},
+      ...STORE.map(g => h("button", {class: "row-i", onclick: () => go("detail", g.id)},
+        h("span", {class: "sw", style: `--c1:${g.c[0]};--c2:${g.c[1]}`}),
+        h("span", {class: "grow"}, h("b", {}, g.t), h("small", {}, g.by + " · " + g.genre + " · " + g.size)),
+        h("span", {}, badge(g.id)))))));
+};
+
+SCREENS.detail = (root) => {
+  const g = item(cur.arg); if (!g) { go("store"); return; }
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, g.t)),
+    h("p", {class: "note"}, g.d),
+    h("p", {class: "note"}, g.by + " · " + g.genre + " · " + g.size),
+    h("div", {style: "margin-top:20px"},
+      installed.has(g.id)
+        ? h("button", {class: "pill", onclick: () => toast("Launching " + g.t + "…")}, "Play")
+        : h("button", {class: "pill", onclick: () => { installed.add(g.id); library.add(g.id); saveAll(); toast(g.t + " installed"); render(); }}, "Install"),
+      h("button", {class: "pill alt", onclick: () => { library.add(g.id); saveAll(); toast("Added to library"); }}, "Add to library"),
+      h("button", {class: "pill ghost", onclick: () => showVol("game")}, "Volume"))));
+};
+
+SCREENS.library = (root) => {
+  const ids = [...library];
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "My games & apps")),
+    ids.length
+      ? h("div", {class: "list"}, ids.map(id => {
+          const g = item(id); if (!g) return null;
+          return h("button", {class: "row-i", onclick: () => go("detail", id)},
+            h("span", {class: "sw", style: `--c1:${g.c[0]};--c2:${g.c[1]}`}),
+            h("span", {class: "grow"}, h("b", {}, g.t), h("small", {}, g.genre + " · " + badge(id))));
+        }))
+      : h("p", {class: "note"}, "Nothing here yet. Add titles from the Store or NarcCloud.")));
+};
+
+SCREENS.mixer = (root) => {
+  const CHANNELS = [
+    {k:"music", n:"Music Lab"}, {k:"nify", n:"Narcify"}, {k:"nflix", n:"Narcflix"},
+    {k:"ntube", n:"Narctube"}, {k:"game", n:"Games"}, {k:"sys", n:"System"}, {k:"term", n:"Terminal"}
+  ];
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "Volume Mixer"),
+      h("p", {class: "note"}, "Per-app volume —  Drag any slider.")),
+    h("div", {class: "mixer-grid"},
+      ...CHANNELS.map(c => h("div", {class: "mcard"},
+        h("h3", {}, c.n),
+        h("div", {class: "pct"}, Math.round((S.vol[c.k] ?? .7) * 100) + "%"),
+        h("input", {type: "range", min: 0, max: 1, step: .01, value: S.vol[c.k] ?? .7, "aria-label": c.n + " volume",
+          oninput: e => { setVol(c.k, +e.target.value); e.target.previousElementSibling.textContent = Math.round(+e.target.value * 100) + "%"; }}))))));
+};
+
+SCREENS.music = (root) => {
+  const seq = h("div", {class: "seq"});
+  ROWS.forEach((r, ri) => {
+    seq.append(h("span", {class: "rl"}, r.n));
+    for (let c = 0; c < 16; c++){
+      seq.append(h("button", {class: "cell", "data-c": c, "aria-pressed": String(!!M.g[ri][c]),
+        "aria-label": `${r.n} step ${c + 1}`,
+        onclick: e => { M.g[ri][c] = M.g[ri][c] ? 0 : 1; e.currentTarget.setAttribute("aria-pressed", String(!!M.g[ri][c])); }}));
+    }
+  });
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "Music Lab"),
+      h("div", {class: "mctl"},
+        h("button", {class: "pill", id: "mplay", onclick: () => M.t ? musicStop() : musicStart()}, M.t ? "■ Stop" : "▶ Play"),
+        h("span", {id: "bpmv"}, S.bpm + " BPM"),
+        h("input", {type: "range", min: 70, max: 170, value: S.bpm, "aria-label": "Tempo",
+          oninput: e => { S.bpm = +e.target.value; $("#bpmv").textContent = S.bpm + " BPM"; saveAll();
+            if (M.t){ musicStop(); musicStart(); } }}),
+        h("button", {class: "pill ghost", onclick: () => { M.g = M.g.map(r => r.map(() => 0)); render(); }}, "Clear"),
+        h("button", {class: "pill ghost", onclick: () => { M.g = ROWS.map(() => Array.from({length: 16}, () => Math.random() < .3 ? 1 : 0)); render(); }}, "Random"))),
+    seq,
+    h("p", {class: "note"}, "Tap steps to build a loop. Sound stays on-device.")));
+};
+
+SCREENS.term = (root) => {
+  const out = h("div", {class: "term", id: "tout"}, termLines.join("\n"));
+  const inp = h("input", {type: "text", placeholder: "command…", "aria-label": "Terminal input",
+    onkeydown: e => { if (e.key === "Enter"){ runTerm(e.target.value); e.target.value = ""; } }});
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "Terminal")),
+    out,
+    h("div", {class: "tinput"}, h("span", {}, ">"), inp)));
+  setTimeout(() => inp.focus(), 50);
+};
+let termLines = ["NarcOS shell 1.0 · type help"];
+const TERM = {
+  help: () => ["help", "ls", "apps <name>", "whoami", "date", "neofetch", "skin amber|green", "cloud", "clear"],
+  ls: () => APPS.map(a => a.id.padEnd(12) + a.n),
+  apps: args => {
+    const id = args[0]; if (!id) return ["usage: apps <name>"];
+    if (!APPS.some(a => a.id === id) && !["nflix","nify","ntube"].includes(id)) return [`no app named "${id}"`];
+    setTimeout(() => { if (["nflix","nify","ntube"].includes(id)) openNarcCloud(id); else go(id); }, 200);
+    return [`opening ${id}…`];
+  },
+  whoami: () => ["guest@narcos"],
+  date: () => [new Date().toString()],
+  neofetch: () => [
+    "      ◢██◣      NarcOS", "    ◢██████◣    skin: " + S.skin,
+    "   ◢████████◣   apps: " + APPS.length, "                installed: " + installed.size],
+  skin: args => {
+    const s = args[0] === "green" ? "green" : args[0] === "amber" ? "narcos" : null;
+    if (!s) return ["usage: skin amber|green"];
+    setSkin(s); return ["skin → " + args[0]];
+  },
+  cloud: () => { setTimeout(() => openNarcCloud(), 150); return ["opening NarcCloud…"]; },
+  clear: () => { termLines = []; return []; }
+};
+function runTerm(line){
+  const parts = line.trim().split(/\s+/); const cmd = parts[0]; const args = parts.slice(1);
+  termLines.push("> " + line);
+  if (TERM[cmd]) termLines.push(...(TERM[cmd](args) || []));
+  else if (cmd) termLines.push("unknown: " + cmd);
+  const el = $("#tout"); if (el) el.textContent = termLines.join("\n");
+  sfx.ok();
+}
+
+SCREENS.settings = (root) => {
+  root.append(h("section", {class: "page"},
+    h("header", {class: "ph"}, h("h1", {}, "Settings")),
+    h("div", {class: "srow"}, h("span", {}, "Skin"),
+      h("div", {},
+        h("button", {class: "pill" + (S.skin === "narcos" ? "" : " alt"), onclick: () => setSkin("narcos")}, "Amber"),
+        h("button", {class: "pill" + (S.skin === "green" ? "" : " alt"), onclick: () => setSkin("green")}, "Green"))),
+    h("div", {class: "srow"}, h("span", {}, "Sound"),
+      h("button", {class: "pill" + (S.sound ? "" : " alt"), onclick: () => { S.sound = !S.sound; saveAll(); render(); }}, S.sound ? "On" : "Off")),
+    h("div", {class: "srow"}, h("span", {}, "Motion"),
+      h("button", {class: "pill" + (S.motion ? "" : " alt"), onclick: () => { S.motion = !S.motion; saveAll(); startRibbon(); render(); }}, S.motion ? "On" : "Off")),
+    h("div", {class: "srow"}, h("span", {}, "Reset NarcOS"),
+      h("button", {class: "pill danger", onclick: () => {
+        if (confirm("Clear library, installed titles, NarcCloud saves and settings?")){
+          try { ["settings","installed","library","cloud","nc_saved"].forEach(k => localStorage.removeItem("narcos." + k)); } catch (e) {}
+          location.reload();
+        }
+      }}, "Reset")),
+    h("p", {class: "note"}, "NarcOS. Library, links and settings stay on this device. No accounts, no servers.")));
+};
+
+/* ========== NarcCloud ========== */
+const NC_SERVICES = [
+  {name:"Narcflix", cat:"video", type:"Movies & TV", icon:"N", theme:"nflix", desc:"Netflix-style movies and series browser."},
+  {name:"Narcify", cat:"music", type:"Music", icon:"♪", theme:"nify", desc:"Spotify-style playlists and player."},
+  {name:"Narctube", cat:"video", type:"Video", icon:"▶", theme:"ntube", desc:"YouTube-style video grid and player."},
+  {name:"Xbox Cloud Gaming", cat:"cloud", type:"Cloud gaming", icon:"X", url:"https://www.xbox.com/play", desc:"Play supported games through Xbox Cloud Gaming."},
+  {name:"GeForce NOW", cat:"cloud", type:"Cloud gaming", icon:"G", url:"https://www.nvidia.com/geforce-now/", desc:"Stream supported PC games."},
+  {name:"Amazon Luna", cat:"cloud", type:"Cloud gaming", icon:"L", url:"https://luna.amazon.com/", desc:"Amazon’s cloud gaming service."},
+  {name:"Boosteroid", cat:"cloud", type:"Cloud gaming", icon:"B", url:"https://boosteroid.com/", desc:"Cloud gaming service."},
+  {name:"Steam", cat:"cloud", type:"PC games", icon:"S", url:"https://store.steampowered.com/", desc:"Official PC game store and library."},
+  {name:"Epic Games Store", cat:"cloud", type:"PC games", icon:"E", url:"https://store.epicgames.com/", desc:"Official PC game store."},
+  {name:"Crunchyroll", cat:"video", type:"Anime", icon:"◉", url:"https://www.crunchyroll.com/", desc:"Official anime streaming."},
+  {name:"Tubi", cat:"video", type:"Free movies & TV", icon:"▶", url:"https://tubitv.com/", desc:"Free ad-supported movies and TV."},
+  {name:"Pluto TV", cat:"video", type:"Free live & on-demand", icon:"▣", url:"https://pluto.tv/", desc:"Live channels and on-demand."},
+  {name:"Twitch", cat:"music", type:"Live video", icon:"▣", url:"https://www.twitch.tv/", desc:"Live creator streams."},
+  {name:"SoundCloud", cat:"music", type:"Music", icon:"☁", url:"https://soundcloud.com/", desc:"Music and creator audio."}
+];
+
+let ncCat = "all";
+function openNarcCloud(view){
+  const hub = $("#narccloud");
+  hub.classList.add("open");
+  hub.setAttribute("aria-hidden", "false");
+  if (view === "nflix") renderNflix();
+  else if (view === "nify") renderNify();
+  else if (view === "ntube") renderNtube();
+  else renderNCHub();
+  sfx.ok();
+}
+function closeNarcCloud(){
+  $("#narccloud").classList.remove("open");
+  $("#narccloud").setAttribute("aria-hidden", "true");
+  sfx.back();
+}
+function renderNCHub(){
+  const wrap = $("#nc-content");
+  wrap.innerHTML = "";
+  const hero = h("div", {class: "nc-hero"},
+    h("div", {class: "nc-kicker"}, "NarcCloud"),
+    h("h1", {}, "Your media hub"),
+    h("p", {}, "Narcflix · Narcify · Narctube · cloud gaming · music. Pick a service or search."),
+    h("div", {},
+      h("button", {class: "pill nflix", onclick: () => renderNflix()}, "Open Narcflix"),
+      h("button", {class: "pill nify", onclick: () => renderNify()}, "Open Narcify"),
+      h("button", {class: "pill ntube", onclick: () => renderNtube()}, "Open Narctube")));
+  const nav = h("div", {class: "nc-nav"},
+    ...["all","video","cloud","music","saved"].map(c =>
+      h("button", {class: ncCat === c ? "active" : "", "data-cat": c, onclick: () => { ncCat = c; renderNCHub(); }}, 
+        c === "all" ? "Featured" : c.charAt(0).toUpperCase() + c.slice(1))));
+  const search = h("input", {class: "nc-search", type: "search", placeholder: "Search services…", value: "",
+    oninput: e => paintNCGrid(e.target.value)});
+  const grid = h("div", {class: "nc-grid", id: "nc-grid"});
+  wrap.append(hero, nav, search, grid);
+  paintNCGrid("");
+}
+function paintNCGrid(q){
+  const grid = $("#nc-grid"); if (!grid) return;
+  const list = NC_SERVICES.filter(x =>
+    (ncCat === "all" || (ncCat === "saved" ? savedNC.has(x.name) : x.cat === ncCat)) &&
+    (!q || (x.name + " " + x.type + " " + x.desc).toLowerCase().includes(q.toLowerCase())));
+  grid.innerHTML = "";
+  if (!list.length){ grid.append(h("div", {class: "nc-empty"}, "No services match.")); return; }
+  list.forEach(x => {
+    const card = h("article", {class: "nc-card", tabindex: "0",
+      onclick: () => {
+        if (x.theme === "nflix") renderNflix();
+        else if (x.theme === "nify") renderNify();
+        else if (x.theme === "ntube") renderNtube();
+        else if (x.url) window.open(x.url, "_blank", "noopener,noreferrer");
+      }},
+      h("span", {class: "nc-card-top"},
+        h("span", {class: "nc-icon", style: x.theme === "nflix" ? "background:#e50914" : x.theme === "nify" ? "background:#1db954;color:#000" : x.theme === "ntube" ? "background:#ff0000" : "background:#2a2f45"}, x.icon),
+        h("span", {class: "nc-tag"}, x.type)),
+      h("strong", {}, x.name),
+      h("small", {}, x.desc),
+      h("span", {class: "nc-card-top"},
+        h("button", {class: "nc-btn", type: "button", onclick: e => { e.stopPropagation();
+          if (x.theme) { if (x.theme==="nflix") renderNflix(); else if (x.theme==="nify") renderNify(); else renderNtube(); }
+          else if (x.url) window.open(x.url, "_blank", "noopener,noreferrer");
+        }}, "Open"),
+        h("button", {class: "nc-btn", type: "button", onclick: e => {
+          e.stopPropagation();
+          if (savedNC.has(x.name)) savedNC.delete(x.name); else savedNC.add(x.name);
+          saveAll(); paintNCGrid(q);
+        }}, savedNC.has(x.name) ? "★ Saved" : "☆ Save")));
+    grid.append(card);
+  });
+}
+
+/* Invidious — official project: https://github.com/iv-org/invidious
+   Public instances: https://docs.invidious.io/instances/
+   Only use instances on the official list. */
+const INVIDIOUS_INSTANCES = [
+  "https://inv.nadeko.net",
+  "https://invidious.nerdvpn.de",
+  "https://yt.chocolatemoo53.com",
+  "https://invidious.tiekoetter.com"
+];
+let INVIDIOUS = localStorage.getItem("narcos.invidious") || INVIDIOUS_INSTANCES[0];
+function setInvidious(url){
+  if (!INVIDIOUS_INSTANCES.includes(url)) return;
+  INVIDIOUS = url;
+  try { localStorage.setItem("narcos.invidious", url); } catch(e){}
+}
+
+function openPlayer(src, title, note){
+  const p = $("#player");
+  $("#ptitle").textContent = title || "Playing";
+  $("#pnote").textContent = note || "Streaming via Invidious / Archive.org";
+  const frame = $("#pframe");
+  frame.src = src;
+  p.classList.add("open");
+  p.setAttribute("aria-hidden", "false");
+  sfx.ok();
+}
+function closePlayer(){
+  const p = $("#player");
+  $("#pframe").src = "about:blank";
+  p.classList.remove("open");
+  p.setAttribute("aria-hidden", "true");
+}
+function playInvidious(videoId, title){
+  openPlayer(INVIDIOUS + "/embed/" + encodeURIComponent(videoId) + "?autoplay=1", title, "Powered by Invidious (github.com/iv-org/invidious) · " + INVIDIOUS);
+}
+function playArchive(identifier, title){
+  openPlayer("https://archive.org/embed/" + encodeURIComponent(identifier), title, "Public domain · archive.org");
+}
+
+/* Narcflix screen */
+function renderNflix(){
+  const wrap = $("#nc-content");
+  wrap.innerHTML = "";
+
+  // Real free / public-domain sources
+  const hero = {t:"Night of the Living Dead", desc:"1968 public-domain classic. When the dead walk, a group of strangers barricade themselves in a farmhouse.", type:"archive", id:"night_of_the_living_dead", c:["#1a0505","#4a1010"]};
+  const movies = [
+    {t:"Night of the Living Dead", type:"archive", id:"night_of_the_living_dead", c:["#1a0505","#6a1515"]},
+    {t:"Plan 9 from Outer Space", type:"archive", id:"Plan_9_from_Outer_Space_1959", c:["#0a1520","#2a4a6a"]},
+    {t:"His Girl Friday", type:"archive", id:"His_Girl_Friday", c:["#1a1a08","#5a4a10"]},
+    {t:"The General (1926)", type:"archive", id:"TheGeneral1926", c:["#0a0a0a","#3a3a3a"]},
+    {t:"Charade (1963)", type:"archive", id:"Charade1963", c:["#1a0a2a","#5a2a6a"]},
+    {t:"Detour (1945)", type:"archive", id:"Detour_1945", c:["#1a1008","#4a3020"]},
+    {t:"D.O.A. (1950)", type:"archive", id:"DOA1950", c:["#0a1a1a","#1a4a4a"]},
+    {t:"The Kid (1921)", type:"archive", id:"TheKid1921", c:["#101010","#404040"]}
+  ];
+  const freeYT = [
+    {t:"Night of the Living Dead (full)", type:"yt", id:"adxdqK61I3M", c:["#2a0a0a","#8a2020"]},
+    {t:"Nosferatu (1922) full", type:"yt", id:"FRbFS0t0n2s", c:["#1a0a1a","#4a2030"]},
+    {t:"The Cabinet of Dr. Caligari", type:"yt", id:"IAtgxR0gXmE", c:["#0a1a2a","#2050a0"]},
+    {t:"Metropolis (restored clips)", type:"yt", id:"gdtZv3XROnc", c:["#0a0a0a","#3a3a3a"]}
+  ];
+
+  function playItem(m){
+    if (m.type === "archive") playArchive(m.id, m.t);
+    else if (m.type === "yt") playInvidious(m.id, m.t);
+  }
+
+  const root = h("div", {class: "nflix-root"},
+    h("div", {class: "nflix-top"},
+      h("div", {class: "nflix-logo"}, "NARCFLIX"),
+      h("nav", {class: "nflix-nav"},
+        h("a", {href: "#", onclick: e => e.preventDefault()}, "Home"),
+        h("a", {href: "#", onclick: e => e.preventDefault()}, "Movies"),
+        h("a", {href: "#", onclick: e => e.preventDefault()}, "Public Domain"),
+        h("a", {href: "#", onclick: e => e.preventDefault()}, "My List")),
+      h("button", {class: "nc-btn", style: "margin-left:auto", onclick: () => renderNCHub()}, "← NarcCloud")),
+    h("div", {class: "nflix-hero", style: "background:linear-gradient(100deg,#000 20%,transparent 70%),linear-gradient(180deg,transparent 50%,#141414),linear-gradient(135deg," + hero.c[0] + "," + hero.c[1] + ")"},
+      h("div", {class: "nflix-hero-inner"},
+        h("h2", {}, hero.t),
+        h("p", {}, hero.desc),
+        h("button", {class: "pill nflix", onclick: () => playItem(hero)}, "▶ Play"),
+        h("button", {class: "pill alt", onclick: () => toast("Added to My List")}, "+ My List"),
+        h("button", {class: "pill ghost", onclick: () => showVol("nflix")}, "Volume"))),
+    h("div", {class: "nflix-row"},
+      h("h3", {}, "Public Domain Classics · Archive.org"),
+      h("div", {class: "nflix-shelf"}, ...movies.map(m =>
+        h("button", {class: "nflix-tile", style: "--c1:" + m.c[0] + ";--c2:" + m.c[1], onclick: () => playItem(m)},
+          h("span", {}, m.t))))),
+    h("div", {class: "nflix-row"},
+      h("h3", {}, "Free Full Movies · YouTube via Invidious"),
+      h("div", {class: "nflix-shelf"}, ...freeYT.map(m =>
+        h("button", {class: "nflix-tile", style: "--c1:" + m.c[0] + ";--c2:" + m.c[1], onclick: () => playItem(m)},
+          h("span", {}, m.t))))),
+    h("div", {class: "nflix-row"},
+      h("h3", {}, "More from Archive.org"),
+      h("div", {class: "nflix-shelf"}, ...movies.slice().reverse().map(m =>
+        h("button", {class: "nflix-tile", style: "--c1:" + m.c[0] + ";--c2:" + m.c[1], onclick: () => playItem(m)},
+          h("span", {}, m.t))))));
+  wrap.append(root);
+}
+
+/* Narcify screen */
+function renderNify(){
+  const wrap = $("#nc-content");
+  wrap.innerHTML = "";
+  const pls = [
+    {n:"Liked Songs", s:"0 tracks", c:["#1db954","#0d5c2a"]},
+    {n:"Night Drive", s:"24 tracks", c:["#1a0a2a","#ff4fa3"]},
+    {n:"Focus Grid", s:"18 tracks", c:["#0b1c3a","#5ec8ff"]},
+    {n:"Green Protocol", s:"12 tracks", c:["#0a1a0a","#3fae2a"]},
+    {n:"Amber Hours", s:"31 tracks", c:["#2a1a08","#ffb347"]},
+    {n:"Synth Harbor", s:"9 tracks", c:["#082a33","#3fd1e0"]}
+  ];
+  const root = h("div", {class: "nify-root"},
+    h("aside", {class: "nify-side"},
+      h("div", {class: "logo"}, "Narcify"),
+      h("button", {class: "active"}, "Home"),
+      h("button", {}, "Search"),
+      h("button", {}, "Your Library"),
+      h("button", {style: "margin-top:auto", onclick: () => renderNCHub()}, "← NarcCloud")),
+    h("div", {class: "nify-main"},
+      h("h1", {}, "Good evening"),
+      h("div", {class: "nify-playlists"},
+        ...pls.map(p => h("button", {class: "nify-pl", onclick: () => toast("Playing " + p.n)},
+          h("div", {class: "art", style: `--c1:${p.c[0]};--c2:${p.c[1]}`}),
+          h("strong", {}, p.n),
+          h("small", {}, p.s)))),
+    h("div", {class: "nify-bar"},
+      h("div", {class: "nify-now"},
+        h("div", {class: "art"}),
+        h("div", {}, h("strong", {}, "Liked Songs"), h("small", {style: "color:#b3b3b3;display:block"}, "Narcify · Playlist"))),
+      h("div", {class: "nify-ctrls"},
+        h("div", {class: "btns"},
+          h("button", {}, "⇄"),
+          h("button", {}, "⏮"),
+          h("button", {class: "play", onclick: () => toast("Play / Pause")}, "▶"),
+          h("button", {}, "⏭"),
+          h("button", {}, "↻")),
+        h("small", {style: "color:#b3b3b3"}, "0:00 ──────── 3:24")),
+      h("div", {class: "nify-vol"},
+        h("span", {}, "🔊"),
+        h("input", {type: "range", min: 0, max: 1, step: .01, value: S.vol.nify ?? .85,
+          oninput: e => setVol("nify", +e.target.value)}),
+        h("button", {class: "nc-btn", style: "padding:6px 10px;font-size:12px", onclick: () => showVol("nify")}, "Mixer"))));
+  wrap.append(root);
+}
+
+/* Narctube — uses official Invidious API (github.com/iv-org/invidious)
+   Endpoints: /api/v1/trending, /api/v1/popular, /api/v1/search, /embed/:id
+   Docs: https://docs.invidious.io/api/ */
+function fmtViews(n){
+  if (n == null) return "";
+  if (n >= 1e9) return (n/1e9).toFixed(1).replace(/\.0$/,"") + "B";
+  if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,"") + "M";
+  if (n >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,"") + "K";
+  return String(n);
+}
+function fmtDur(sec){
+  if (sec == null || sec < 0) return "";
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  if (h) return h + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  return m + ":" + String(s).padStart(2,"0");
+}
+function thumbUrl(thumbs){
+  if (!thumbs || !thumbs.length) return "";
+  // prefer medium / high quality
+  const order = ["maxres","maxresdefault","sddefault","high","medium","default"];
+  for (const q of order){
+    const hit = thumbs.find(t => (t.quality||"").toLowerCase().includes(q) || t.quality === q);
+    if (hit && hit.url) return hit.url;
+  }
+  return thumbs[0].url || "";
+}
+
+async function invFetch(path){
+  const url = INVIDIOUS + path;
+  const res = await fetch(url, {headers: {"Accept":"application/json"}});
+  if (!res.ok) throw new Error("Invidious " + res.status + " " + path);
+  return res.json();
+}
+
+function renderNtube(){
+  const wrap = $("#nc-content");
+  wrap.innerHTML = "";
+
+  const root = h("div", {class: "ntube-root"});
+  const top = h("div", {class: "ntube-top"},
+    h("div", {class: "ntube-logo"}, "Narc", h("span", {}, "Tube")),
+    h("div", {class: "ntube-search"},
+      h("input", {type: "search", placeholder: "Search YouTube via Invidious API", id: "nt-search",
+        onkeydown: e => { if (e.key === "Enter") ntSearch(); }}),
+      h("button", {onclick: ntSearch}, "🔍")),
+    h("select", {id: "nt-instance", title: "Official Invidious instance",
+        style: "background:#222;border:1px solid #303030;color:#fff;border-radius:8px;padding:8px 10px;max-width:180px",
+        onchange: e => {
+          setInvidious(e.target.value);
+          toast("Invidious → " + e.target.value.replace("https://",""));
+          ntLoad("trending");
+        }},
+      ...INVIDIOUS_INSTANCES.map(u => {
+        const opt = h("option", {value: u}, u.replace("https://",""));
+        if (u === INVIDIOUS) opt.selected = true;
+        return opt;
+      })),
+    h("button", {class: "nc-btn", onclick: () => ntLoad("trending")}, "Trending"),
+    h("button", {class: "nc-btn", onclick: () => ntLoad("popular")}, "Popular"),
+    h("button", {class: "nc-btn", onclick: () => renderNCHub()}, "← NarcCloud"),
+    h("button", {class: "nc-btn", onclick: () => showVol("ntube")}, "Volume")
+  );
+
+  const status = h("div", {id: "nt-status", style: "padding:12px 24px;color:#aaa;font-size:13px"},
+    "Loading from Invidious API…");
+  const grid = h("div", {class: "ntube-grid", id: "nt-grid"});
+
+  root.append(top, status, grid);
+  wrap.append(root);
+
+  function paint(list, label){
+    status.textContent = (label || "Results") + " · " + INVIDIOUS.replace("https://","") + " · " + list.length + " videos";
+    grid.innerHTML = "";
+    if (!list.length){
+      grid.append(h("p", {style:"color:#888;padding:20px"}, "No videos. Try another instance or search."));
+      return;
+    }
+    list.forEach(v => {
+      if (!v.videoId) return;
+      const thumb = thumbUrl(v.videoThumbnails);
+      const dur = v.liveNow ? "LIVE" : fmtDur(v.lengthSeconds);
+      const views = v.viewCountText || (v.viewCount != null ? fmtViews(v.viewCount) + " views" : "");
+      const btn = h("button", {class: "ntube-vid", onclick: () => playInvidious(v.videoId, v.title || "Video")},
+        h("div", {class: "ntube-thumb", style: thumb
+          ? "background:url(" + JSON.stringify(thumb) + ") center/cover no-repeat,#111"
+          : "--c1:#1a1a1a;--c2:#333"},
+          dur ? h("span", {class: "dur"}, dur) : null),
+        h("strong", {}, v.title || v.videoId),
+        h("small", {}, (v.author || "Unknown") + (views ? " · " + views : ""))
+      );
+      grid.append(btn);
+    });
+  }
+
+  async function ntLoad(mode){
+    status.textContent = "Fetching " + mode + " from " + INVIDIOUS.replace("https://","") + "…";
+    grid.innerHTML = "";
+    try {
+      let data;
+      if (mode === "popular") data = await invFetch("/api/v1/popular");
+      else data = await invFetch("/api/v1/trending?type=default");
+      const list = Array.isArray(data) ? data : [];
+      paint(list.filter(x => x.type === "video" || x.videoId), mode === "popular" ? "Popular" : "Trending");
+    } catch (err) {
+      status.textContent = "API error: " + err.message + " — try another instance";
+      grid.append(h("p", {style:"color:#f66;padding:20px"},
+        "Could not reach Invidious API. Pick another instance above, or check https://docs.invidious.io/instances/"));
+    }
+  }
+
+  async function ntSearch(){
+    const q = (document.getElementById("nt-search") || {}).value || "";
+    if (!q.trim()) return ntLoad("trending");
+    status.textContent = "Searching “" + q.trim() + "”…";
+    grid.innerHTML = "";
+    try {
+      const data = await invFetch("/api/v1/search?q=" + encodeURIComponent(q.trim()) + "&type=video");
+      const list = (Array.isArray(data) ? data : []).filter(x => x.type === "video" || x.videoId);
+      paint(list, "Search: " + q.trim());
+    } catch (err) {
+      status.textContent = "Search failed: " + err.message;
+    }
+  }
+
+  // expose for buttons
+  window._ntLoad = ntLoad;
+  window._ntSearch = ntSearch;
+  // rebind top buttons that closed over ntLoad
+  // (already wired via onclick closures above)
+
+  ntLoad("trending");
+}
+function ntSearch(){ if (window._ntSearch) window._ntSearch(); }
+function ntLoad(m){ if (window._ntLoad) window._ntLoad(m); }
+
+/* volume float (video-style) */
+function showVol(ch){
+  const f = $("#volfloat");
+  const sl = $("#volslider");
+  const pct = $("#volpct");
+  const v = Math.round((S.vol[ch] ?? .7) * 100);
+  sl.value = v; pct.textContent = v + "%";
+  f.classList.add("show");
+  f.dataset.ch = ch;
+  sl.oninput = () => {
+    const n = +sl.value;
+    pct.textContent = n + "%";
+    setVol(ch, n / 100);
+  };
+  setTimeout(() => {
+    const hide = e => { if (!f.contains(e.target)) { f.classList.remove("show"); document.removeEventListener("pointerdown", hide); } };
+    document.addEventListener("pointerdown", hide);
+  }, 50);
+}
+
+/* ---------- render / dock / events ---------- */
+function render(){
+  const root = $("#screen");
+  root.innerHTML = "";
+  $("#crumb").textContent = NAMES[cur.name] || cur.name;
+  $("#back").hidden = cur.name === "home";
+  $$(".dk").forEach(b => b.classList.toggle("act", b.dataset.go === cur.name || (cur.name === "home" && b.dataset.go === "home")));
+  const fn = SCREENS[cur.name];
+  if (fn) fn(root);
+  else root.append(h("p", {class: "note", style: "padding:40px"}, "Screen not found."));
+}
+
+$("#wm").addEventListener("click", () => { closeNarcCloud(); go("home"); });
+$("#back").addEventListener("click", back);
+$$(".dk").forEach(b => b.addEventListener("click", () => {
+  const id = b.dataset.go;
+  if (id === "home") { closeNarcCloud(); go("home"); }
+  else if (id === "narccloud") openNarcCloud();
+  else { closeNarcCloud(); go(id); }
+}));
+$("#nc-close").addEventListener("click", closeNarcCloud);
+$("#nc-home").addEventListener("click", () => { closeNarcCloud(); go("home"); });
+$("#pclose").addEventListener("click", closePlayer);
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape"){
+    if ($("#player").classList.contains("open")) closePlayer();
+    else if ($("#narccloud").classList.contains("open")) closeNarcCloud();
+    else if (cur.name !== "home") back();
+  }
+});
+
+/* pad support (basic) */
+function pollPad(){
+  const pads = navigator.getGamepads?.() || [];
+  // light support — focus movement left to browser / keyboard
+  requestAnimationFrame(pollPad);
+}
+
+/* boot */
+function bootLog(){
+  const lines = [
+    "[ ok ] NarcOS kernel",
+    "[ ok ] ribbon compositor",
+    "[ ok ] NarcCloud media hub",
+    "[ ok ] Narcflix · Narcify · Narctube",
+    "[ ok ] volume mixer (per-app)",
+    "[ ok ] library + store",
+    "[ ok ] ready"
+  ];
+  const el = $("#blog"); let i = 0;
+  const t = setInterval(() => {
+    if (i < lines.length){ el.textContent += lines[i++] + "\n"; }
+    else clearInterval(t);
+  }, 180);
+}
+
+/* startup */
+document.body.dataset.skin = S.skin;
+fit(); startRibbon(); tick(); setInterval(tick, 15000);
+bootLog();
+setTimeout(() => $("#boot").classList.add("ready"), 1600);
+requestAnimationFrame(pollPad);
+render();
+})();
+</script>
+</body>
+</html>
